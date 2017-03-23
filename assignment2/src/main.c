@@ -19,7 +19,7 @@ volatile uint32_t msTick=0; //contains the system time in millisecond
 volatile uint32_t previousTimeSevenSeg=0;
 volatile uint32_t SevenSegValue = 0;
 volatile uint32_t previousTimeOledDisplay = 0;
-
+volatile uint32_t previousTimeToggle = 0;
 //////////////////////////////////////////////////////////////////////////////////////////
 uint8_t oledLight[40]={};
 uint8_t oledTemp[40]={};
@@ -35,8 +35,8 @@ volatile uint32_t zReading = 0;
 volatile uint32_t xInitialReading = 0;
 volatile uint32_t yInitialReading = 0; //contains the system time in millisecond
 volatile uint32_t zInitialReading = 0;
-volatile int runningState = 0; //initially off at stable state
-volatile int mode = 0;
+volatile int runningState = 0; //0 is stable, 1 is running
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // on every timer interrupt, msTick increases
 void SysTick_Handler(void){
@@ -107,28 +107,26 @@ void init_GPIO(void){
 	PC.Funcnum = 0;
 	PC.OpenDrain = 0;
 	PC.Pinmode = 0;
-	PC.Portnum = 1;		//SW4 button is the toggle button
+	PC.Portnum = 1;
 	PC.Pinnum = 31;
 	PINSEL_ConfigPin(&PC);
-	GPIO_SetDir(1,1<<31,0);
-}
-//void EINT3_IRQHandler (void)
-//{
-//	if((LPC_GPIOINT -> IO0IntStatF >> 31) & 0x1){ //btnsw4(TOGGLE MODE SWITCH) is pressed
-//		LPC_GPIOINT -> IO0IntClr = 1<<31;
-//	}
-//}
-void Toggle (void){
-	int btn = (GPIO_ReadValue(1) >> 31) & 0x01;//SW4 toggle function
-    if (btn == 0 && runningState == 0){
-    	runningState = 1;
-    }
-    else if (btn == 0 && runningState == 1){
-    	runningState = 0;
-    }
-    btn = 1;
-}
+	GPIO_SetDir(1,1<<31,0);//SW4 button is the toggle button
 
+	PC.Portnum = 2;
+	PC.Pinnum = 0;
+	PINSEL_ConfigPin(&PC);
+	GPIO_SetDir(2,1,1);//red led is set as output
+
+	PC.Portnum = 2;
+	PC.Pinnum = 1;
+	PINSEL_ConfigPin(&PC);
+	GPIO_SetDir(2,1<<1,1);//green led is set as output
+
+	PC.Portnum = 0;
+	PC.Pinnum = 26;
+	PINSEL_ConfigPin(&PC);
+	GPIO_SetDir(0,1<<26,1);//red led is set as output
+}
 void SevenSeg(void){
 	if ( (msTick - previousTimeSevenSeg) >= 1000){
 		SevenSegValue++;
@@ -137,7 +135,6 @@ void SevenSeg(void){
 		}
 	    previousTimeSevenSeg = msTick;
 	}
-
 	if(SevenSegValue == 0){led7seg_setChar('0',FALSE);}
 	else if(SevenSegValue == 1){led7seg_setChar('1',FALSE);}
 	else if(SevenSegValue == 2){led7seg_setChar('2',FALSE);}
@@ -163,7 +160,8 @@ void OledDisplay(uint32_t lightReading,double tempReading,int8_t xReading,int8_t
 	sprintf(oledAccY, "ACC_Y: %d      ",yReading);
 	sprintf(oledAccZ, "ACC_Z: %d      ",zReading);
 	sprintf(oledMonitor, "MONITOR");
-    if (   (SevenSegValue == 5 && SevenSegValue != 6)
+	oled_putString(0,50,(uint8_t *)oledMonitor,OLED_COLOR_WHITE,OLED_COLOR_BLACK);
+    if (   (SevenSegValue == 5  && SevenSegValue != 6)
     	|| (SevenSegValue == 10 && SevenSegValue != 11)
     	|| (SevenSegValue == 15 && SevenSegValue != 0)){
     	oled_putString(0,0,(uint8_t *)oledLight,OLED_COLOR_WHITE,OLED_COLOR_BLACK);
@@ -171,11 +169,43 @@ void OledDisplay(uint32_t lightReading,double tempReading,int8_t xReading,int8_t
     	oled_putString(0,20,(uint8_t *)oledAccX,OLED_COLOR_WHITE,OLED_COLOR_BLACK);
     	oled_putString(0,30,(uint8_t *)oledAccY,OLED_COLOR_WHITE,OLED_COLOR_BLACK);
     	oled_putString(0,40,(uint8_t *)oledAccZ,OLED_COLOR_WHITE,OLED_COLOR_BLACK);
-    	oled_putString(0,50,(uint8_t *)oledMonitor,OLED_COLOR_WHITE,OLED_COLOR_BLACK);
     }
+}
+void Toggle(void){
+	if (((GPIO_ReadValue(1) >> 31) == 0) && msTick - previousTimeToggle >=500){
+		previousTimeToggle = msTick;
+		if(runningState == 0)
+		runningState = 1;
+		else if (runningState == 1)
+        runningState = 0;
+	}
+}
+void StableState(void){
+	led7seg_setChar(' ',FALSE);
+	oled_clearScreen(OLED_COLOR_BLACK);
+    GPIO_ClearValue( 2, 0 );
+    GPIO_ClearValue( 2, 1 );
+    GPIO_ClearValue( 0, (1<<26) );
+}
+void MonitorState(void){
+    static int i;
+	tempReading = temp_read()/10;
+	while (i == 0){
+		acc_read ( &xInitialReading, &yInitialReading, &zInitialReading);
+		i++;
+	}
+	acc_read ( &xReading, &yReading, &zReading);
+	xReading = xReading - xInitialReading;
+	yReading = yReading - yInitialReading;
+	zReading = zReading - zInitialReading;
+	lightReading = light_read();
+	SevenSeg();
+	OledDisplay(lightReading, tempReading, xReading,yReading,zReading);
+
 }
 
 int main(void){
+    static int i;
 
 	SysTick_Config(SystemCoreClock / 1000 ); //generates a 1 millisec clock
 	init_ssp();
@@ -185,26 +215,22 @@ int main(void){
 	oled_init();
 	temp_init(&getTicks);
 	acc_init();
-	acc_read ( &xInitialReading, &yInitialReading, &zInitialReading);
+	light_enable();
 
 	while(1){
-		//printf("Time taken (C version): %ld milliseconds\n",(msTick));
 		Toggle();
-		if (runningState == 1){
-			SevenSeg();
-			tempReading = temp_read()/10;
-			acc_read ( &xReading, &yReading, &zReading);
-			xReading = xReading - xInitialReading;
-			yReading = yReading - yInitialReading;
-			zReading = zReading - zInitialReading;
 
-			OledDisplay(lightReading, tempReading, xReading,yReading,zReading);
-		}
 		if (runningState == 0){
-
+			StableState();
 		}
+		else if (runningState == 1){
+			MonitorState();
+		}
+//		printf("%d\n",runningState);
+
 	}
 }
+
 
 void check_failed(uint8_t *file, uint32_t line)
 {
@@ -214,3 +240,5 @@ void check_failed(uint8_t *file, uint32_t line)
 	/* Infinite loop */
 	while(1);
 }
+
+
