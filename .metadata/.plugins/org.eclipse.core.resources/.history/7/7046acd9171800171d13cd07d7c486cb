@@ -40,7 +40,7 @@ volatile uint32_t yInitialReading = 0; //contains the system time in millisecond
 volatile uint32_t zInitialReading = 0;
 volatile int runningState = 0; //0 is stable, 1 is running
 
-uint8_t uartDataForTransmission[60] = {}; //data thats sent to CEMS
+uint8_t uartDataTransmit[60] = {}; //data thats sent to CEMS
 int transmissionCounter = 0 ;//counter for the no. of transmissions
 
 int RESET_RGB = 0;
@@ -259,17 +259,17 @@ void init_uart(void){
 void UartDataSendAtF (void){
 	if (SevenSegValue == 15){
 		if(blink_blue == 1){
-			sprintf(uartDataForTransmission,"Algae was Detected.\r\n");
-			UART_Send(LPC_UART3,(uint8_t *)uartDataForTransmission, strlen(uartDataForTransmission),BLOCKING);
+			sprintf(uart_transmit,"Algae was Detected.\r\n");
+			UART_Send(LPC_UART3,(uint8_t *)uart_transmit, strlen(uart_transmit),BLOCKING);
 		}
 		if(blink_red == 1){
-			sprintf(uartDataForTransmission,"Solid Wastes was Detected.\r\n");
-			UART_Send(LPC_UART3,(uint8_t *)uartDataForTransmission, strlen(uartDataForTransmission),BLOCKING);
+			sprintf(uart_transmit,"Solid Wastes was Detected.\r\n");
+			UART_Send(LPC_UART3,(uint8_t *)uart_transmit, strlen(uart_transmit),BLOCKING);
 		}
 		sprintf(uartDataForTransmission,"%03d_-_T%2.2f_L%u_AX%d_AY%d_AZ%d \r\n",
 				transmissionCounter,tempReading,lightReading,xReading,yReading,zReading);
-		UART_Send(LPC_UART3,(uint8_t *)uartDataForTransmission, strlen(uartDataForTransmission),BLOCKING);
-		transmissionCounter_no++;
+		UART_Send(LPC_UART3,(uint8_t *)uartData, strlen(uart_transmit),BLOCKING);
+		transtransmissionCounter_no++;
 	}
 }
 void Toggle(void){

@@ -260,11 +260,11 @@ void UartDataSendAtF (void){
 	if (SevenSegValue == 15){
 		if(blink_blue == 1){
 			sprintf(uartDataForTransmission,"Algae was Detected.\r\n");
-			UART_Send(LPC_UART3,(uint8_t *)uartDataForTransmission, strlen(uartDataForTransmission),BLOCKING);
+			UART_Send(LPC_UART3,(uint8_t *)uart_transmit, strlen(uart_transmit),BLOCKING);
 		}
 		if(blink_red == 1){
 			sprintf(uartDataForTransmission,"Solid Wastes was Detected.\r\n");
-			UART_Send(LPC_UART3,(uint8_t *)uartDataForTransmission, strlen(uartDataForTransmission),BLOCKING);
+			UART_Send(LPC_UART3,(uint8_t *)uart_transmit, strlen(uart_transmit),BLOCKING);
 		}
 		sprintf(uartDataForTransmission,"%03d_-_T%2.2f_L%u_AX%d_AY%d_AZ%d \r\n",
 				transmissionCounter,tempReading,lightReading,xReading,yReading,zReading);
