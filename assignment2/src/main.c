@@ -31,17 +31,19 @@ uint8_t oledMonitor[40]={};
 uint8_t TEMP_HIGH_WARNING = 45;
 uint8_t LIGHT_LOW_WARNING = 50;
 volatile uint32_t lightReading = 30;
-volatile uint32_t tempReading = 0;
-volatile uint32_t xReading = 0;
-volatile uint32_t yReading = 0;
-volatile uint32_t zReading = 0;
-volatile uint32_t xInitialReading = 0;
-volatile uint32_t yInitialReading = 0; //contains the system time in millisecond
-volatile uint32_t zInitialReading = 0;
+volatile double tempReading = 0;
+volatile int8_t xReading = 0;
+volatile int8_t yReading = 0;
+volatile int8_t zReading = 0;
+volatile int32_t xInitialReading = 0;
+volatile int32_t yInitialReading = 0; //contains the system time in millisecond
+volatile int32_t zInitialReading = 0;
 volatile int runningState = 0; //0 is stable, 1 is running
 
-uint8_t uartDataForTransmission[60] = {}; //data thats sent to CEMS
+uint8_t uartDataForTransmission[60] = {}; //data that's sent to CEMS
 int transmissionCounter = 0 ;//counter for the no. of transmissions
+int flagUART = 1;
+
 
 int RESET_RGB = 0;
 int PRESENT_TIME = 0;
@@ -144,6 +146,7 @@ void SevenSeg(void){
 		SevenSegValue++;
 		if (SevenSegValue>15){
 			SevenSegValue = 0;
+			flagUART = 1;
 		}
 	    previousTimeSevenSeg = msTick;
 	}
@@ -191,6 +194,7 @@ void EINT3_IRQHandler (void)
 //	}
 
 	if((LPC_GPIOINT -> IO2IntStatF >> 5) & 0x1) { //Light Sensor
+
 
 		LPC_GPIOINT -> IO2IntClr = 1<<5;
 	}
@@ -257,28 +261,39 @@ void init_uart(void){
 	UART_TxCmd(LPC_UART3, ENABLE);
 }
 void UartDataSendAtF (void){
-	if (SevenSegValue == 15){
-		if(blink_blue == 1){
-			sprintf(uartDataForTransmission,"Algae was Detected.\r\n");
+	if ( SevenSegValue == 15 ){
+
+		//	if (SevenSegValue == 15){
+		//		if(blink_blue == 1){
+		//			sprintf(uartDataForTransmission,"Algae was Detected.\r\n");
+		//			UART_Send(LPC_UART3,(uint8_t *)uartDataForTransmission, strlen(uartDataForTransmission),BLOCKING);
+		//		}
+		//		if(blink_red == 1){
+		//			sprintf(uartDataForTransmission,"Solid Wastes was Detected.\r\n");
+		//			UART_Send(LPC_UART3,(uint8_t *)uartDataForTransmission, strlen(uartDataForTransmission),BLOCKING);
+		//		}
+
+		if (flagUART==1){
+		    sprintf(uartDataForTransmission,"%03d_-_T%2.2f_L%u_AX%d_AY%d_AZ%d \r\n",
+		    		transmissionCounter,tempReading,lightReading,xReading,yReading,zReading);
 			UART_Send(LPC_UART3,(uint8_t *)uartDataForTransmission, strlen(uartDataForTransmission),BLOCKING);
+			transmissionCounter++;
+			flagUART++;
+			flagUART = 0;
 		}
-		if(blink_red == 1){
-			sprintf(uartDataForTransmission,"Solid Wastes was Detected.\r\n");
-			UART_Send(LPC_UART3,(uint8_t *)uartDataForTransmission, strlen(uartDataForTransmission),BLOCKING);
-		}
-		sprintf(uartDataForTransmission,"%03d_-_T%2.2f_L%u_AX%d_AY%d_AZ%d \r\n",
-				transmissionCounter,tempReading,lightReading,xReading,yReading,zReading);
-		UART_Send(LPC_UART3,(uint8_t *)uartDataForTransmission, strlen(uartDataForTransmission),BLOCKING);
-		transmissionCounter_no++;
 	}
 }
 void Toggle(void){
+
 	if (((GPIO_ReadValue(1) >> 31) == 0) && msTick - previousTimeToggle >=500){
 		previousTimeToggle = msTick;
-		if(runningState == 0)
-		runningState = 1;
+		if(runningState == 0){
+			runningState = 1;//enters monitor state
+		    sprintf(uartDataForTransmission,"Entering MONITOR Mode.\r\n");
+			UART_Send(LPC_UART3,(uint8_t *)uartDataForTransmission, strlen(uartDataForTransmission),BLOCKING);
+		}
 		else if (runningState == 1)
-        runningState = 0;
+			runningState = 0;//enters stable state
 	}
 }
 void StableState(void){
@@ -317,6 +332,7 @@ int main(void){
 	rgb_init();
 	acc_init();
 	light_enable();
+	init_uart();
 
 	while(1){
 		Toggle();
@@ -328,7 +344,6 @@ int main(void){
 			MonitorState();
 		}
 //		printf("%d\n",runningState);
-
 	}
 }
 
