@@ -321,7 +321,7 @@ void MonitorState(void){
 	OledDisplay(lightReading, tempReading, xReading,yReading,zReading);
 	rgb_blinker();
 //	SevenSeg();
-//	UartDataSendAtF();
+	UartDataSendAtF();
 }
 
 int main(void){

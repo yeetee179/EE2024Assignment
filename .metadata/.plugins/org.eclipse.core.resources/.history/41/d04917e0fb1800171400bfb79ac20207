@@ -249,7 +249,7 @@ void pinsel_uart3(void){
 
 void init_uart(void){
 	UART_CFG_Type uartCfg;
-	uartCfg.Baud_rate = 115200;
+	uartCfg.Baud_rate = 9600;
 	uartCfg.Databits = UART_DATABIT_8;
 	uartCfg.Parity = UART_PARITY_NONE;
 	uartCfg.Stopbits = UART_STOPBIT_1;
@@ -265,11 +265,11 @@ void UartDataSendAtF (void){
 
 		//	if (SevenSegValue == 15){
 		//		if(blink_blue == 1){
-		//			sprintf(uartDataForTransmission,"Movement in darkness was dectected.\r\n");
+		//			sprintf(uartDataForTransmission,"Algae was Detected.\r\n");
 		//			UART_Send(LPC_UART3,(uint8_t *)uartDataForTransmission, strlen(uartDataForTransmission),BLOCKING);
 		//		}
 		//		if(blink_red == 1){
-		//			sprintf(uartDataForTransmission,"Fire was Detected.\r\n");
+		//			sprintf(uartDataForTransmission,"Solid Wastes was Detected.\r\n");
 		//			UART_Send(LPC_UART3,(uint8_t *)uartDataForTransmission, strlen(uartDataForTransmission),BLOCKING);
 		//		}
 
@@ -317,11 +317,9 @@ void MonitorState(void){
 	zReading = zReading - zInitialReading;
 	lightReading = light_read();
 	SevenSeg();
-	UartDataSendAtF();
 	OledDisplay(lightReading, tempReading, xReading,yReading,zReading);
 	rgb_blinker();
-//	SevenSeg();
-//	UartDataSendAtF();
+	UartDataSendAtF();
 }
 
 int main(void){

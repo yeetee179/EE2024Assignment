@@ -265,11 +265,11 @@ void UartDataSendAtF (void){
 
 		//	if (SevenSegValue == 15){
 		//		if(blink_blue == 1){
-		//			sprintf(uartDataForTransmission,"Movement in darkness was dectected.\r\n");
+		//			sprintf(uartDataForTransmission,"Algae was Detected.\r\n");
 		//			UART_Send(LPC_UART3,(uint8_t *)uartDataForTransmission, strlen(uartDataForTransmission),BLOCKING);
 		//		}
 		//		if(blink_red == 1){
-		//			sprintf(uartDataForTransmission,"Fire was Detected.\r\n");
+		//			sprintf(uartDataForTransmission,"Solid Wastes was Detected.\r\n");
 		//			UART_Send(LPC_UART3,(uint8_t *)uartDataForTransmission, strlen(uartDataForTransmission),BLOCKING);
 		//		}
 
@@ -317,11 +317,9 @@ void MonitorState(void){
 	zReading = zReading - zInitialReading;
 	lightReading = light_read();
 	SevenSeg();
-	UartDataSendAtF();
 	OledDisplay(lightReading, tempReading, xReading,yReading,zReading);
 	rgb_blinker();
-//	SevenSeg();
-//	UartDataSendAtF();
+	UartDataSendAtF();
 }
 
 int main(void){

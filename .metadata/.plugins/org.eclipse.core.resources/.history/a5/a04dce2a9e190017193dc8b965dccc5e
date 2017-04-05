@@ -316,12 +316,12 @@ void MonitorState(void){
 	yReading = yReading - yInitialReading;
 	zReading = zReading - zInitialReading;
 	lightReading = light_read();
-	SevenSeg();
-	UartDataSendAtF();
+//	SevenSeg();
+
 	OledDisplay(lightReading, tempReading, xReading,yReading,zReading);
 	rgb_blinker();
-//	SevenSeg();
-//	UartDataSendAtF();
+	SevenSeg();
+	UartDataSendAtF();
 }
 
 int main(void){
