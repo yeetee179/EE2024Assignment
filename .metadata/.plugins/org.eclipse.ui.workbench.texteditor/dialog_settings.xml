@@ -13,16 +13,16 @@
 		<item value="false" key="casesensitive"/>
 		<item value="false" key="incremental"/>
 		<item value="false" key="wholeword"/>
-		<item value="tempReading" key="selection"/>
+		<item value="zInitialReading" key="selection"/>
 		<list key="findhistory">
+			<item value="zInitialReading"/>
+			<item value="SevenSeg"/>
 			<item value="tempReading"/>
 			<item value="xReading"/>
 			<item value="uartDataForTransmission"/>
 			<item value="previousTimeUART"/>
 			<item value="oledLight"/>
 			<item value="OledDisplay"/>
-			<item value="uart"/>
-			<item value="xInitialReading"/>
 		</list>
 		<list key="replacehistory">
 			<item value="if"/>
