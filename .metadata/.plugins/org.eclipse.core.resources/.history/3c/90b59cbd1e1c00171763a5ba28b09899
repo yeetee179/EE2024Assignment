@@ -366,7 +366,7 @@ void UartDataSendAtF (void){
     		//					xPreviousReading + xoff, yPreviousReading + yoff, zPreviousReading + zoff);
     		sprintf(uartDataForTransmission,"%03d_-_T%2.2f_L%u_AX%d_AY%d_AZ%d \r\n",
     				transmissionCounter,tempReading,lightReading,
-    				xPreviousReading + xoff, yPreviousReading + yoff, zPreviousReading + zoff);
+    				xReading + xoff, yReading + yoff, zReading + zoff);
     		UART_Send(LPC_UART3,(uint8_t *)uartDataForTransmission, strlen(uartDataForTransmission),BLOCKING);
     		transmissionCounter++;
     		flagUART = 0;
