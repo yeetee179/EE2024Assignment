@@ -29,10 +29,11 @@ uint8_t oledAccX[40]={};
 uint8_t oledAccY[40]={};
 uint8_t oledAccZ[40]={};
 uint8_t oledMonitor[40]={};
-uint8_t TEMP_HIGH_WARNING = 45;
+uint8_t TEMP_HIGH_WARNING = 20;
 uint8_t LIGHT_LOW_WARNING = 50;
 volatile uint32_t lightReading = 30;
 volatile double tempReading = 0;
+int tempCounter = 0;
 int32_t xoff = 0;
 int32_t yoff = 0;
 int32_t zoff = 0;
@@ -51,6 +52,8 @@ uint8_t uartDataForTransmission[60] = {}; //data that's sent to CEMS
 int transmissionCounter = 0 ;//counter for the no. of transmissions
 int flagUART = 1;
 
+volatile uint32_t previousBlinkingTime=0;
+int lightSensorFlag = 0; // 0 is dont blink, 1 is blink
 
 int RESET_RGB = 0;
 int PRESENT_TIME = 0;
@@ -58,12 +61,12 @@ int START_RGB_TIME = 0;
 int COUNT_RGB = 0;
 int red_led = 0;
 int blue_led = 0;
-////////////////////////////////////////////////////////////////////////////////////////////////
-// on every timer interrupt, msTick increases
+
+int redLedFlag = 0;
+
 void SysTick_Handler(void){
 	msTick++;
 }
-//////////////////////////////////////////////////////////////////////////////////////////////
 uint32_t getTicks(void){
     return msTick;
 }
@@ -102,7 +105,6 @@ static void init_ssp(void)
 	// Enable SSP peripheral
 	SSP_Cmd(LPC_SSP1, ENABLE);
 }
-//////////////////////////////////////////////////////////////////////////////////////////////
 static void init_i2c(void)
 {
 	PINSEL_CFG_Type PinCfg;
@@ -121,7 +123,6 @@ static void init_i2c(void)
 	/* Enable I2C1 operation */
 	I2C_Cmd(LPC_I2C2, ENABLE);
 }
-//////////////////////////////////////////////////////////////////////////////////////////////
 void init_GPIO(void){
 	PINSEL_CFG_Type PC;
 
@@ -138,16 +139,33 @@ void init_GPIO(void){
 	PINSEL_ConfigPin(&PC);
 	GPIO_SetDir(2,1,1);//red led is set as output
 
-//	PC.Portnum = 2;
-//	PC.Pinnum = 1;
-//	PINSEL_ConfigPin(&PC);
-//	GPIO_SetDir(2,1<<1,1);//green led is set as output
-
 	PC.Portnum = 0;
 	PC.Pinnum = 26;
 	PINSEL_ConfigPin(&PC);
-	GPIO_SetDir(0,1<<26,1);//red led is set as output
+	GPIO_SetDir(0,1<<26,1);//blue led is set as output
 }
+
+//uint32_t t1 = 0;
+//uint32_t t2 = 0;
+//int initial = 0;
+//void TemperatureRead(void){
+//	if(initial == 0){
+//		t1 = getTicks();
+//		initial = 1;
+//		tempCounter = 0;
+//	}
+//	if(tempCounter >= 340){
+//		t2 = getTicks();
+//		initial = 0;
+//		if(t2 > t1)
+//			t2 = t2 - t1;
+//		else
+//			t2 = (0xFFFFFFFF - t1 + 1) + t2;
+//		t2 = ((1000*t2)/(tempCounter) - 2731);
+//		tempReading = t2/10.0;
+//	}
+//}
+
 void SevenSeg(void){
 	if ( (msTick - previousTimeSevenSeg) >= 1000){
 		SevenSegValue++;
@@ -155,6 +173,9 @@ void SevenSeg(void){
 			SevenSegValue = 0;
 			flagUART = 1;
 		}
+		tempReading = temp_read()/10;
+		lightReading = light_read();
+		acc_read ( &xPreviousReading, &yPreviousReading, &zPreviousReading);
 	    previousTimeSevenSeg = msTick;
 	}
 	if(SevenSegValue == 0){led7seg_setChar('0',FALSE);}
@@ -174,7 +195,6 @@ void SevenSeg(void){
 	else if(SevenSegValue == 14){led7seg_setChar('E',FALSE);}
 	else if(SevenSegValue == 15){led7seg_setChar('F',FALSE);}
 }
-//////////////////////////////////////////////////////////////////////////////////////////////
 void OledDisplay(uint32_t lightReading,double tempReading,int8_t xReading,int8_t yReading,int8_t zReading){
 	sprintf(oledLight,"LUX: %u      ",lightReading);
 	sprintf(oledTemp,"TEMP: %2.2f    ",tempReading);
@@ -183,15 +203,6 @@ void OledDisplay(uint32_t lightReading,double tempReading,int8_t xReading,int8_t
 	sprintf(oledAccZ, "ACC_Z: %d      ",zPreviousReading + zoff);
 	sprintf(oledMonitor, "MONITOR");
 	oled_putString(0,50,(uint8_t *)oledMonitor,OLED_COLOR_WHITE,OLED_COLOR_BLACK);
-//    if (   (SevenSegValue == 5 )
-//    	|| (SevenSegValue == 10)
-//    	|| (SevenSegValue == 15)){
-//    	oled_putString(0,0,(uint8_t *)oledLight,OLED_COLOR_WHITE,OLED_COLOR_BLACK);
-//    	oled_putString(0,10,(uint8_t *)oledTemp,OLED_COLOR_WHITE,OLED_COLOR_BLACK);
-//    	oled_putString(0,20,(uint8_t *)oledAccX,OLED_COLOR_WHITE,OLED_COLOR_BLACK);
-//    	oled_putString(0,30,(uint8_t *)oledAccY,OLED_COLOR_WHITE,OLED_COLOR_BLACK);
-//    	oled_putString(0,40,(uint8_t *)oledAccZ,OLED_COLOR_WHITE,OLED_COLOR_BLACK);
-//    }
     if (   (SevenSegValue == 5 )
     	|| (SevenSegValue == 10)
     	|| (SevenSegValue == 15)){
@@ -203,53 +214,90 @@ void OledDisplay(uint32_t lightReading,double tempReading,int8_t xReading,int8_t
     }
 
 }
+
 void EINT3_IRQHandler (void)
 {
-//	if((LPC_GPIOINT -> IO0IntStatR >> 2) & 0x1){ //temperature sensor
-//		LPC_GPIOINT -> IO0IntClr = 1<<2;
-//		temp_counter++;
-//	}
-
 	if((LPC_GPIOINT -> IO2IntStatF >> 5) & 0x1) { //Light Sensor
+		blue_led = 1;
 		LPC_GPIOINT -> IO2IntClr = 1<<5;
 	}
+//	if((LPC_GPIOINT -> IO0IntStatR  >> 2) & 0x1){ //temperature sensor
+//		LPC_GPIOINT -> IO0IntClr = 1<<2;
+//		tempCounter++;
+//	}
 }
-void rgb_setClear() {
-	GPIO_ClearValue(0, 1<<26);
-	GPIO_ClearValue(2,1);
+void LightIntInit (void) {
+	//Interupt
+	light_setRange(LIGHT_RANGE_4000);
+	light_setLoThreshold(50);
+	light_setIrqInCycles(LIGHT_CYCLE_1);
+	light_clearIrqStatus();
+
+	//Enable GPIO Interrupt P2.5 for light sensor
+	LPC_GPIOINT->IO2IntClr = 1 << 5;
+	LPC_GPIOINT->IO2IntEnF |= 1 << 5;
+
+//	//Enable GPIO Interrupt for temperature sensor
+//
+// 	uint32_t PG=5, PP=0b11, SP=0b000;
+//	LPC_GPIOINT->IO0IntClr = 1 << 2;
+//	LPC_GPIOINT->IO0IntEnF |= 1 << 2;
+// 	NVIC_SetPriorityGrouping(5);
+// 	NVIC_SetPriority(EINT3_IRQn,NVIC_EncodePriority(PG,PP,SP));
+
+	NVIC_EnableIRQ(EINT3_IRQn);
 }
-void rgb_warning(uint32_t light_val, uint32_t temp_val) {
-	COUNT_RGB++;
-	if(light_val < LIGHT_LOW_WARNING) {
-		blue_led = 1;
-	} else {
-		blue_led = 0;
-	}
+
+void setLeds (uint8_t ledMask)
+{
+    if ((ledMask & RGB_RED) != 0) {
+        GPIO_SetValue( 2, (1<<0));
+    } else {
+        GPIO_ClearValue( 2, (1<<0) );
+    }
+
+    if ((ledMask & RGB_BLUE) != 0) {
+        GPIO_SetValue( 0, (1<<26) );
+    } else {
+        GPIO_ClearValue( 0, (1<<26) );
+    }
+}
+void rgb_warning(uint32_t temp_val) {
+//	, int32_t absoluteAccReading
+//	if(absoluteAccReading > 5) {
+//		blue_led2 = 1;
+//	}else {
+//		blue_led2 = 0;
+//	}
 	if(temp_val > TEMP_HIGH_WARNING){
 		red_led = 1;
-	} else {
-		red_led = 0;
 	}
-	if(COUNT_RGB % 2 == 0) {
-		if(blue_led == 1) {
-			GPIO_SetValue(0, 1<<26);
-		}
-		if(red_led == 1) {
-			GPIO_SetValue(2,1);
-		}
-	} else {
-		rgb_setClear();
+//		&& blue_led2 == 1
+	if(blue_led == 1) {
+		setLeds(RGB_BLUE);
+	}
+	else if(red_led == 1) {
+		setLeds(RGB_RED);
+	}
+	else if(red_led == 1 && blue_led == 1) {
+		setLeds(3);
+	}
+	else {
+		setLeds(0x00);
 	}
 }
 void rgb_blinker() {
 	PRESENT_TIME = getTicks();
-	if(RESET_RGB == 1) {
+	if(RESET_RGB == 1 && PRESENT_TIME - START_RGB_TIME >= RGB_CLOCK) {
 		RESET_RGB = 0;
 		START_RGB_TIME = PRESENT_TIME;
+		setLeds(0);
 	}
 	else if(PRESENT_TIME - START_RGB_TIME >= RGB_CLOCK) {
-		rgb_warning(lightReading, tempReading);
+		rgb_warning(tempReading);
+//		absoluteAccReading
 		RESET_RGB = 1;
+		START_RGB_TIME = PRESENT_TIME;
 	}
 }
 void pinsel_uart3(void){
@@ -276,7 +324,6 @@ void init_uart(void){
 }
 void UartDataSendAtF (void){
 	if ( SevenSegValue == 15 ){
-
 
 		//		if(blink_blue == 1){
 		//			sprintf(uartDataForTransmission,"Movement in darkness was dectected.\r\n");
@@ -314,18 +361,12 @@ void Toggle(void){
 void StableState(void){
 	led7seg_setChar(' ',FALSE);
 	oled_clearScreen(OLED_COLOR_BLACK);
-	GPIO_ClearValue( 2, 0 );
 	GPIO_ClearValue( 2, 1 );
 	GPIO_ClearValue( 0, (1<<26) );
+	blue_led = 0;
 }
 void MonitorState(void){
-
-	if ( (msTick - previousReadingTime) >= 1000){
-		tempReading = temp_read()/10;
-		lightReading = light_read();
-		acc_read ( &xPreviousReading, &yPreviousReading, &zPreviousReading);
-		previousReadingTime = msTick;
-	}
+	SevenSeg();
 
 	xReading = xReading - xPreviousReading;
 	yReading = yReading - yPreviousReading;
@@ -339,16 +380,11 @@ void MonitorState(void){
 	yReading = yPreviousReading;
 	zReading = zPreviousReading;
 
-//	tempReading = temp_read()/10;
-//	acc_read ( &xPreviousReading, &yPreviousReading, &zPreviousReading);
-//	acc_read ( &xReading, &yReading, &zReading);
-//	absoluteAccReading =  xReading * xReading + yReading * yReading + zReading * zReading;
-//	lightReading = light_read();
-
-	SevenSeg();
 	UartDataSendAtF();
 	OledDisplay(lightReading, tempReading, xReading,yReading,zReading);
+
 	rgb_blinker();
+
 }
 
 int main(void){
@@ -359,10 +395,10 @@ int main(void){
 	led7seg_init();
 	oled_init();
 	temp_init(&getTicks);
-	rgb_init();
 	acc_init();
 	light_enable();
 	init_uart();
+	LightIntInit();
 
     acc_read(&xPreviousReading, &yPreviousReading, &zPreviousReading);
     xoff = 0-xPreviousReading;
@@ -378,7 +414,6 @@ int main(void){
 		else if (runningState == 1){
 			MonitorState();
 		}
-//		printf("%d\n",runningState);
 	}
 }
 
@@ -391,5 +426,6 @@ void check_failed(uint8_t *file, uint32_t line)
 	/* Infinite loop */
 	while(1);
 }
+//
 
 
