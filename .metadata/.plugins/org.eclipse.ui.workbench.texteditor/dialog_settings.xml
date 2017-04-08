@@ -2,37 +2,37 @@
 <section name="Workbench">
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog_dialogBounds">
 		<item value="353" key="DIALOG_WIDTH"/>
-		<item value="191" key="DIALOG_Y_ORIGIN"/>
+		<item value="122" key="DIALOG_Y_ORIGIN"/>
+		<item value="1572" key="DIALOG_X_ORIGIN"/>
 		<item value="513" key="DIALOG_HEIGHT"/>
-		<item value="1438" key="DIALOG_X_ORIGIN"/>
 		<item value="1|Segoe UI|9.0|0|WINDOWS|1|-18|0|0|0|400|0|0|0|1|0|0|0|0|Segoe UI" key="DIALOG_FONT_NAME"/>
 	</section>
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
 		<item value="true" key="wrap"/>
-		<item value="false" key="isRegEx"/>
 		<item value="false" key="casesensitive"/>
+		<item value="false" key="isRegEx"/>
 		<item value="false" key="incremental"/>
 		<item value="false" key="wholeword"/>
-		<item value="blinkingTimer" key="selection"/>
+		<item value="absoluteAccReading" key="selection"/>
 		<list key="findhistory">
-			<item value="blinkingTimer"/>
-			<item value="pca9532_setLeds"/>
-			<item value="light_enable"/>
-			<item value="rgb_init"/>
-			<item value="PC.Portnum = 0;"/>
-			<item value="&#x09;PC.Portnum = 0;"/>
+			<item value="absoluteAccReading"/>
+			<item value="zPreviousReading"/>
 			<item value="yPreviousReading"/>
 			<item value="xPreviousReading"/>
+			<item value="blue_led"/>
+			<item value="lock"/>
+			<item value="tempTempReading"/>
+			<item value="xReading"/>
 		</list>
 		<list key="replacehistory">
+			<item value="zCurrentReading"/>
+			<item value="yCurrentReading"/>
+			<item value="xCurrentReading"/>
 			<item value="zPreviousReading"/>
 			<item value="xPreviousReading"/>
 			<item value="yPreviousReading"/>
 			<item value="if"/>
 			<item value="i"/>
-			<item value="SevenSegValue"/>
-			<item value=""/>
-			<item value="msTick"/>
 		</list>
 	</section>
 </section>

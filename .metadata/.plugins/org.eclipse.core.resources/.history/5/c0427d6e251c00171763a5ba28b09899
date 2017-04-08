@@ -37,18 +37,14 @@ int tempCounter = 0;
 int32_t xoff = 0;
 int32_t yoff = 0;
 int32_t zoff = 0;
-volatile int8_t xDifference= 0;
-volatile int8_t yDifference = 0;
-volatile int8_t zDifference = 0;
-
+volatile int8_t xReading = 0;
+volatile int8_t yReading = 0;
+volatile int8_t zReading = 0;
 volatile int32_t xCurrentReading = 0;
-volatile int32_t yCurrentReading = 0;
+volatile int32_t yCurrentReading = 0; //contains the system time in millisecond
 volatile int32_t zCurrentReading = 0;
-
-volatile int32_t xPreviousReading = 0;
-volatile int32_t yPreviousReading = 0;
-volatile int32_t zPreviousReading = 0;
 volatile int32_t absoluteAccReading = 0;
+volatile uint32_t previousReadingTime=0;
 
 volatile int runningState = 0; //0 is stable, 1 is running
 
@@ -405,20 +401,17 @@ void MonitorState(void){
 	acc_read ( &xCurrentReading, &yCurrentReading, &zCurrentReading);
 
 
-	xDifference = xPreviousReading - xCurrentReading;
-	yDifference = yPreviousReading - yCurrentReading;
-	zDifference = zPreviousReading - zCurrentReading;
+	xReading = xReading - xCurrentReading;
+	yReading = yReading - yCurrentReading;
+	zReading = zReading - zCurrentReading;
 
-	absoluteAccReading =  xDifference * xDifference
-			            + yDifference * yDifference
-			            + zDifference * zDifference;
+	absoluteAccReading =  xReading * xReading
+			            + yReading * yReading
+			            + zReading * zReading;
 
-
-
-	xPreviousReading = xCurrentReading;
-	yPreviousReading = yCurrentReading;
-	zPreviousReading = zCurrentReading;
-
+	xReading = xCurrentReading;
+	yReading = yCurrentReading;
+	zReading = zCurrentReading;
 
 	OledDisplay();
 	UartDataSendAtF();

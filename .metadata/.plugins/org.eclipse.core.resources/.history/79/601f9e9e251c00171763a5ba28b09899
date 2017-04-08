@@ -40,15 +40,14 @@ int32_t zoff = 0;
 volatile int8_t xDifference= 0;
 volatile int8_t yDifference = 0;
 volatile int8_t zDifference = 0;
-
 volatile int32_t xCurrentReading = 0;
 volatile int32_t yCurrentReading = 0;
 volatile int32_t zCurrentReading = 0;
-
 volatile int32_t xPreviousReading = 0;
 volatile int32_t yPreviousReading = 0;
 volatile int32_t zPreviousReading = 0;
 volatile int32_t absoluteAccReading = 0;
+volatile uint32_t previousReadingTime=0;
 
 volatile int runningState = 0; //0 is stable, 1 is running
 
@@ -413,12 +412,9 @@ void MonitorState(void){
 			            + yDifference * yDifference
 			            + zDifference * zDifference;
 
-
-
 	xPreviousReading = xCurrentReading;
 	yPreviousReading = yCurrentReading;
 	zPreviousReading = zCurrentReading;
-
 
 	OledDisplay();
 	UartDataSendAtF();

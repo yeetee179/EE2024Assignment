@@ -37,18 +37,14 @@ int tempCounter = 0;
 int32_t xoff = 0;
 int32_t yoff = 0;
 int32_t zoff = 0;
-volatile int8_t xDifference= 0;
-volatile int8_t yDifference = 0;
-volatile int8_t zDifference = 0;
-
-volatile int32_t xCurrentReading = 0;
-volatile int32_t yCurrentReading = 0;
-volatile int32_t zCurrentReading = 0;
-
+volatile int8_t xReading = 0;
+volatile int8_t yReading = 0;
+volatile int8_t zReading = 0;
 volatile int32_t xPreviousReading = 0;
-volatile int32_t yPreviousReading = 0;
+volatile int32_t yPreviousReading = 0; //contains the system time in millisecond
 volatile int32_t zPreviousReading = 0;
 volatile int32_t absoluteAccReading = 0;
+volatile uint32_t previousReadingTime=0;
 
 volatile int runningState = 0; //0 is stable, 1 is running
 
@@ -179,7 +175,7 @@ void SevenSeg(void){
 		}
 //		tempReading = temp_read()/10;
 //		lightReading = light_read();
-//		acc_read ( &xCurrentReading, &yCurrentReading, &zCurrentReading);
+//		acc_read ( &xPreviousReading, &yPreviousReading, &zPreviousReading);
 	    previousTimeSevenSeg = msTick;
 	}
 	if(SevenSegValue == 0){led7seg_setChar('0',FALSE);}
@@ -202,9 +198,9 @@ void SevenSeg(void){
 void OledDisplay(void){
 	sprintf(oledLight,"LUX: %u        ",lightReading);
 	sprintf(oledTemp,"TEMP: %2.2f     ",tempReading);
-	sprintf(oledAccX, "ACC_X: %d       ",xCurrentReading + xoff);
-	sprintf(oledAccY, "ACC_Y: %d      ",yCurrentReading + yoff);
-	sprintf(oledAccZ, "ACC_Z: %d      ",zCurrentReading + zoff);
+	sprintf(oledAccX, "ACC_X: %d       ",xPreviousReading + xoff);
+	sprintf(oledAccY, "ACC_Y: %d      ",yPreviousReading + yoff);
+	sprintf(oledAccZ, "ACC_Z: %d      ",zPreviousReading + zoff);
 	sprintf(oledMonitor, "MONITOR");
 	oled_putString(0,50,(uint8_t *)oledMonitor,OLED_COLOR_WHITE,OLED_COLOR_BLACK);
     if (   (SevenSegValue == 5 )
@@ -221,12 +217,12 @@ void OledDisplay(void){
 
     	tempReading = temp_read()/10;
     	lightReading = light_read();
-    	acc_read ( &xCurrentReading, &yCurrentReading, &zCurrentReading);
+    	acc_read ( &xPreviousReading, &yPreviousReading, &zPreviousReading);
 
 //    	if (flagUART==1){
 //    		//			sprintf(uartDataForTransmission,"%03d_-_T%2.2f_L%u_AX%d_AY%d_AZ%d \r\n",
 //    		//					transmissionCounter,tempReading,lightReading,
-//    		//					xCurrentReading + xoff, yCurrentReading + yoff, zCurrentReading + zoff);
+//    		//					xPreviousReading + xoff, yPreviousReading + yoff, zPreviousReading + zoff);
 //    		sprintf(uartDataForTransmission,"%03d_-_T%2.2f_L%u_AX%d_AY%d_AZ%d \r\n",
 //    				transmissionCounter,tempReading,lightReading,
 //    				xReading + xoff, yReading + yoff, zReading + zoff);
@@ -237,9 +233,9 @@ void OledDisplay(void){
 
     	sprintf(oledLight,"LUX: %u      ",lightReading);
     	sprintf(oledTemp,"TEMP: %2.2f      ",tempReading);
-    	sprintf(oledAccX, "ACC_X: %d      ",xCurrentReading + xoff);
-    	sprintf(oledAccY, "ACC_Y: %d        ",yCurrentReading + yoff);
-    	sprintf(oledAccZ, "ACC_Z: %d      ",zCurrentReading + zoff);
+    	sprintf(oledAccX, "ACC_X: %d      ",xPreviousReading + xoff);
+    	sprintf(oledAccY, "ACC_Y: %d        ",yPreviousReading + yoff);
+    	sprintf(oledAccZ, "ACC_Z: %d      ",zPreviousReading + zoff);
     	oled_putString(0,0,(uint8_t *)oledLight,OLED_COLOR_WHITE,OLED_COLOR_BLACK);
     	oled_putString(0,10,(uint8_t *)oledTemp,OLED_COLOR_WHITE,OLED_COLOR_BLACK);
     	oled_putString(0,20,(uint8_t *)oledAccX,OLED_COLOR_WHITE,OLED_COLOR_BLACK);
@@ -367,10 +363,10 @@ void UartDataSendAtF (void){
     	if (flagUART==1){
     		//			sprintf(uartDataForTransmission,"%03d_-_T%2.2f_L%u_AX%d_AY%d_AZ%d \r\n",
     		//					transmissionCounter,tempReading,lightReading,
-    		//					xCurrentReading + xoff, yCurrentReading + yoff, zCurrentReading + zoff);
+    		//					xPreviousReading + xoff, yPreviousReading + yoff, zPreviousReading + zoff);
     		sprintf(uartDataForTransmission,"%03d_-_T%2.2f_L%u_AX%d_AY%d_AZ%d \r\n",
     				transmissionCounter,tempReading,lightReading,
-    				xCurrentReading + xoff, yCurrentReading + yoff, zCurrentReading + zoff);
+    				xPreviousReading + xoff, yPreviousReading + yoff, zPreviousReading + zoff);
     		UART_Send(LPC_UART3,(uint8_t *)uartDataForTransmission, strlen(uartDataForTransmission),BLOCKING);
     		transmissionCounter++;
     		flagUART = 0;
@@ -402,23 +398,20 @@ void MonitorState(void){
 
 	tempReading = temp_read()/10;
 	lightReading = light_read();
-	acc_read ( &xCurrentReading, &yCurrentReading, &zCurrentReading);
+	acc_read ( &xPreviousReading, &yPreviousReading, &zPreviousReading);
 
 
-	xDifference = xPreviousReading - xCurrentReading;
-	yDifference = yPreviousReading - yCurrentReading;
-	zDifference = zPreviousReading - zCurrentReading;
+	xReading = xReading - xPreviousReading;
+	yReading = yReading - yPreviousReading;
+	zReading = zReading - zPreviousReading;
 
-	absoluteAccReading =  xDifference * xDifference
-			            + yDifference * yDifference
-			            + zDifference * zDifference;
+	absoluteAccReading =  xReading * xReading
+			            + yReading * yReading
+			            + zReading * zReading;
 
-
-
-	xPreviousReading = xCurrentReading;
-	yPreviousReading = yCurrentReading;
-	zPreviousReading = zCurrentReading;
-
+	xReading = xPreviousReading;
+	yReading = yPreviousReading;
+	zReading = zPreviousReading;
 
 	OledDisplay();
 	UartDataSendAtF();
@@ -440,13 +433,9 @@ int main(void){
 	LightIntInit();
 
     acc_read(&xCurrentReading, &yCurrentReading, &zCurrentReading);
-    xoff = 0-xCurrentReading;
-    yoff = 0-yCurrentReading;
-    zoff = 0-zCurrentReading;
-
-    xPreviousReading = xCurrentReading;
-    yPreviousReading = yCurrentReading;
-    zPreviousReading = zCurrentReading;
+    xoff = 0-xPreviousReading;
+    yoff = 0-yPreviousReading;
+    zoff = 0-zPreviousReading;
 
 	while(1){
 		Toggle();
